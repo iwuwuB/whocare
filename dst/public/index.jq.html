@@ -1,0 +1,223 @@
+<!doctype html public="storage">
+<html>
+<meta charset=utf-8/>
+<meta http-equiv="cache-control" content="no-cache"/>
+<title>My First React Router App</title>
+<script src="/js/jquery.min.js"></script>
+<!--
+	<script src="/rawData.js"></script>
+-->
+<script type="text/javascript">
+	var _state = {
+		data: [],
+		time: 0,
+		idx: 0
+	};	
+
+	let rawData = [];
+	const t = 1/300;
+	const mT = t*1000;
+
+	var handleRawData = function(){
+		if(rawData[_state.idx] == undefined) return;
+
+		_state.data.push(rawData[_state.idx]);
+		_state.time = _state.time + t;
+		
+		_state.idx++
+
+		makeECG();
+
+//		if(_state.time >= 1) return;
+		setTimeout(handleRawData, mT);
+	}
+
+	var makeBase = function(){
+
+		let el = undefined;
+		let yLine = 51;
+		let yLine_ofs = 400;
+		let draw = 'M51 '+ yLine+ ' L51 '+ (yLine+yLine_ofs);
+		for(let i=51+5; i<=751; i+=5){
+			yLine += yLine_ofs;
+			yLine_ofs *= -1;
+			draw = draw+ ','+ i+ ' '+ yLine+ ','+ i+ ' '+ (yLine+yLine_ofs);
+		}
+
+		let xLine = 751;
+		let xLine_ofs = -700;
+		draw = draw+ ','+ (xLine+xLine_ofs)+ ' 451';
+		for(let i=451-5; i>=51; i-=5){
+			xLine += xLine_ofs;
+			xLine_ofs *= -1;
+			draw = draw+ ','+ xLine+ ' '+ i+ ','+ (xLine+xLine_ofs)+ ' '+ i;
+		}
+		
+		el = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+		el.setAttribute('d', draw);
+		el.setAttribute('stroke', "#FFD4D4");
+		el.setAttribute('fill', "none");
+		$("#redLine").append(el);
+
+
+		yLine = 51;
+		yLine_ofs = 400;
+		draw = 'M51 '+ yLine+ ' L51 '+ (yLine+yLine_ofs);
+		for(let i=51+25; i<=751; i+=25){
+			yLine += yLine_ofs;
+			yLine_ofs *= -1;
+			draw = draw+ ','+ i+ ' '+ yLine+ ','+ i+ ' '+ (yLine+yLine_ofs);
+		}
+
+		xLine = 751;
+		xLine_ofs = -700;
+		draw = draw+ ','+ (xLine+xLine_ofs)+ ' 451';
+		for(let i=451-25; i>=51; i-=25){
+			xLine += xLine_ofs;
+			xLine_ofs *= -1;
+			draw = draw+ ','+ xLine+ ' '+ i+ ','+ (xLine+xLine_ofs)+ ' '+ i;
+		}
+		
+		el = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+		el.setAttribute('d', draw);
+		el.setAttribute('stroke', "#FFA1A1");
+		el.setAttribute('fill', "none");
+		$("#redLine").append(el);
+
+/*
+		let el = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+		let elNode = document.createTextNode('2000');
+		el.appendChild(elNode);
+		el.setAttribute('x', '0');
+		el.setAttribute('y', '460');
+		el.setAttribute('stroke', 'red');
+		$("#redLine").append(el);
+
+		el = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+		elNode = document.createTextNode('2400');
+		el.appendChild(elNode);
+		el.setAttribute('x', '0');
+		el.setAttribute('y', '50');
+		el.setAttribute('stroke', 'red');
+		$("#redLine").append(el);
+*/
+
+	}
+
+	var makeECG = function(){
+		let el = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+		let elNode = undefined;
+		const curLen = _state.data.length;
+		const data = _state.data;
+		const time = _state.time;
+		const xX = 1;
+		const xOfs = 50;
+		const yY = 0.15;
+		const yOfs = 330;
+		const mLine = 225;
+		const xDotOfs = 25/(0.2/t);
+
+		let xDot = 1;
+		let drawD = undefined;
+
+		for(let i=0; i<curLen; i+=1){
+			if(i == 0){
+				drawD = 'M'+ ((xDot)*xX+xOfs)+ ' '+ (mLine-(data[i][1]*yY-yOfs))+ ' L'+ ((xDot+xDotOfs)*xX+xOfs)+ ' '+ (mLine-(data[i][1]*yY-yOfs));
+			}else{
+				drawD = drawD+ ','+ ((xDot+xDotOfs)*xX+xOfs)+ ' '+ (mLine-(data[i][1]*yY-yOfs));
+			}
+
+			xDot += xDotOfs;
+
+		}	
+		el.setAttribute('d', drawD);
+		el.setAttribute('stroke', 'black');
+		el.setAttribute('fill', 'none');
+		$('#blackLine').html(el);
+
+		el = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+		elNode = document.createTextNode(/*Math.floor(time)*/time+ 's');
+		el.appendChild(elNode);
+		el.setAttribute('x', '760');
+		el.setAttribute('y', '460');
+		el.setAttribute('stroke', 'black');
+		$("#blackLine").append(el);
+	}
+
+	var XHRequest = function(cb){
+		let oReq = new XMLHttpRequest();
+		
+		oReq.open("GET", "/stream", true);
+		oReq.responseType = "arraybuffer";
+
+		oReq.onload = function(oEvent){
+			const arrbuf_ = oReq.response;
+
+			if(arrbuf_){
+				const arrbuf = new Uint16Array(arrbuf_);
+				for (var i = 0; i < arrbuf.length; i+=4) {
+					rawData.push([arrbuf[i], arrbuf[i+1], arrbuf[i+2], arrbuf[i+3]]);
+				}
+
+				cb();
+			}
+		}
+
+		oReq.send();
+	}
+
+	var ecgOpen = function(){
+		
+		$("#ecgModal").css("display", "inline-block");
+	}
+
+	$(document).ready(function(){
+		makeBase();
+		XHRequest(handleRawData);
+	});
+</script>
+<style type="text/css">
+	.modal_background {
+		position: fixed;
+		top: 0;
+		left: 0;
+		bottom: 0;
+		right: 0;
+		overflow: auto;
+		z-index: 1;
+		background-color: rgba(0, 0, 0, 0.75);
+		text-align: center;
+	}
+
+	.modal_background:before {
+		content: "";
+		display: inline-block;
+		height: 100%;
+		vertical-align: middle;
+	}
+
+	.modal_ {
+		background-color: #fff;
+		vertical-align: middle;
+		position: relative;
+		border-radius: 8px;
+		z-index: 2;
+		text-align: left;
+		display: none;
+		box-sizing: border-box;
+		width: 1600px;
+		height: 600px;
+	}
+
+</style>
+<body>
+	<div id="app">
+		<svg width="1600" height="500">
+			<g id="redLine"></g>
+			<g id="blackLine"></g>
+		</svg>
+		<div id='ecgModal' class="modal_"> 5566 </div>
+		<button onclick="ecgOpen()" >Data</button>
+	</div>
+</body>
+</html>

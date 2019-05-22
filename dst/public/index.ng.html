@@ -1,0 +1,141 @@
+<!doctype html public="storage">
+<html>
+<meta charset=utf-8/>
+<meta http-equiv="cache-control" content="no-cache"/>
+<title>My First React Router App</title>
+<script src="/js/angular.js"></script>
+<script src="/rawData.js"></script>
+<script type="text/javascript">
+
+var app = angular.module('ecgApp', [], function(){});
+app.component('ECG', {
+	controller: ([], function($scope,$element){
+		var vm = this;
+		var _state = {
+			data: [],
+			time: 0,
+			idx: 0
+		};	
+
+		const RDLen = rawData.length;
+		const MSLen = RDLen/2;
+		const t = 1/300;
+		const mT = t*1000;
+		const xX = 1;
+		const xOfs = 50;
+		const yY = 0.15;
+		const yOfs = 330;
+		const mLine = 225;
+		const xDotOfs = 25/(0.2/t);
+
+		var handleRawData = function(){
+	//		if(_state.data.length >= MSLen)
+	//			_state.data.splice(0, 1);
+
+	//		if(_state.idx >= RDLen)
+	//			_state.idx = 0;
+
+			if(rawData[_state.idx] == undefined) return;
+
+			_state.data.push(rawData[_state.idx]);
+			_state.time = _state.time + t;
+			
+			_state.idx++
+
+			makeECG();
+
+	//		if(_state.time >= 1) return;
+	//		if(_state.idx == 1500) return;
+			setTimeout(handleRawData, mT);
+		}
+
+		var makeBase = function(){
+
+			for(let i=51; i<=451; i+=5){
+				let el = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+				const yL = 'M51 '+ (i)+ ' L750 '+ (i);
+				const st = (i-51)%25==0?"#FFA1A1":"#FFD4D4";
+				el.setAttribute('d', yL);
+				el.setAttribute('stroke', st);
+				$("#redLine").append(el);
+					
+			}
+
+			for(let i=51; i<=751; i+=5){
+				let el = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+				const xL = 'M'+ (i)+ ' 51 L'+ (i)+ ' 450';
+				const st = (i-51)%25==0?"#FFA1A1":"#FFD4D4";
+				el.setAttribute('d', xL);
+				el.setAttribute('stroke', st);
+				$("#redLine").append(el);
+			}
+
+	/*
+			let el = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+			let elNode = document.createTextNode('2000');
+			el.appendChild(elNode);
+			el.setAttribute('x', '0');
+			el.setAttribute('y', '460');
+			el.setAttribute('stroke', 'red');
+			$("#redLine").append(el);
+
+			el = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+			elNode = document.createTextNode('2400');
+			el.appendChild(elNode);
+			el.setAttribute('x', '0');
+			el.setAttribute('y', '50');
+			el.setAttribute('stroke', 'red');
+			$("#redLine").append(el);
+	*/
+
+		}
+
+		var makeECG = function(){
+			let el = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+			let elNode = undefined;
+			const curLen = _state.data.length;
+			const data = _state.data;
+			const time = _state.time;
+		
+			let xDot = 1;
+			let drawD = undefined;
+
+			for(let i=0; i<curLen; i+=1){
+				if(i == 0){
+					drawD = 'M'+ ((xDot)*xX+xOfs)+ ' '+ (mLine-(data[i][1]*yY-yOfs))+ ' L'+ ((xDot+xDotOfs)*xX+xOfs)+ ' '+ (mLine-(data[i][1]*yY-yOfs));
+				}else{
+					drawD = drawD+ ','+ ((xDot+xDotOfs)*xX+xOfs)+ ' '+ (mLine-(data[i][1]*yY-yOfs));
+				}
+
+				xDot += xDotOfs;
+
+			}	
+			el.setAttribute('d', drawD);
+			el.setAttribute('stroke', 'black');
+			el.setAttribute('fill', 'none');
+			$('#blackLine').html(el);
+
+			el = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+			elNode = document.createTextNode(/*Math.floor(time)*/time+ 's');
+			el.appendChild(elNode);
+			el.setAttribute('x', '760');
+			el.setAttribute('y', '460');
+			el.setAttribute('stroke', 'black');
+			$("#blackLine").append(el);
+		}
+
+	}),
+	controllerAs: 'vm'
+});
+</script>
+<body>
+	<div ng-app="ecgApp">
+		<svg width="1600" height="500">
+			<g id="redLine">
+				<path d={{}}></path>
+			</g>
+			<g id="blackLine"></g>
+		</svg>
+	</div>
+</body>
+</html>
